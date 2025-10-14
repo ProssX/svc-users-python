@@ -65,13 +65,13 @@ def list_accounts(
     )
 
 
-@router.get("/{account_id}", response_model=ApiResponse)
+@router.get("/{email}", response_model=ApiResponse)
 def get_account(
-    account_id: UUID,
+    email: str,
     db: Session = Depends(get_db)
 ):
-    """Get a specific account by ID."""
-    db_account = account_service.get_account(db, account_id)
+    """Get a specific account by email."""
+    db_account = account_service.get_account_by_email(db, email)
     if not db_account:
         return not_found_response("Account")
     
@@ -81,9 +81,9 @@ def get_account(
     )
 
 
-@router.patch("/{account_id}", response_model=ApiResponse)
+@router.patch("/{email}", response_model=ApiResponse)
 def update_account(
-    account_id: UUID,
+    email: str,
     account_update: AccountUpdate,
     db: Session = Depends(get_db)
 ):
@@ -97,16 +97,7 @@ def update_account(
                     errors=[{"field": "role_id", "error": "Role not found"}]
                 )
         
-        # If updating email, check if it's already taken
-        if account_update.email:
-            existing = account_service.get_account_by_email(db, account_update.email)
-            if existing and existing.id != account_id:
-                return error_response(
-                    message="Email already in use",
-                    code=409
-                )
-        
-        db_account = account_service.update_account(db, account_id, account_update)
+        db_account = account_service.update_account(db, email, account_update)
         if not db_account:
             return not_found_response("Account")
         
@@ -122,13 +113,13 @@ def update_account(
         )
 
 
-@router.delete("/{account_id}", response_model=ApiResponse)
+@router.delete("/{email}", response_model=ApiResponse)
 def delete_account(
-    account_id: UUID,
+    email: str,
     db: Session = Depends(get_db)
 ):
     """Delete an account."""
-    success = account_service.delete_account(db, account_id)
+    success = account_service.delete_account(db, email)
     if not success:
         return not_found_response("Account")
     

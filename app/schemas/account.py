@@ -21,14 +21,12 @@ class AccountCreate(AccountBase):
 
 class AccountUpdate(BaseModel):
     """Schema for updating an account."""
-    email: Optional[EmailStr] = Field(None, description="New email address")
     role_id: Optional[UUID] = Field(None, description="New role ID")
     password: Optional[str] = Field(None, min_length=8, max_length=100, description="New password")
 
 
 class AccountResponse(AccountBase):
     """Schema for account response (without password)."""
-    id: UUID
     role_id: UUID
     created_at: datetime
     updated_at: datetime

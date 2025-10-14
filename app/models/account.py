@@ -2,7 +2,6 @@
 Account model.
 Represents a user account with email/password authentication.
 """
-import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
@@ -15,11 +14,10 @@ class Account(Base):
     
     __tablename__ = "accounts"
     
-    # Primary key
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    # Primary key - using email as PK
+    email = Column(String(255), primary_key=True, nullable=False)
     
     # Fields
-    email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     
     # Foreign key
@@ -33,4 +31,4 @@ class Account(Base):
     role = relationship("Role", back_populates="accounts")
     
     def __repr__(self):
-        return f"<Account(id={self.id}, email='{self.email}')>"
+        return f"<Account(email='{self.email}')>"
