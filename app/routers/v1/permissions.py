@@ -1,0 +1,114 @@
+"""
+Permission endpoints - CRUD operations for permissions.
+"""
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from app.database import get_db
+from app.schemas.response import ApiResponse
+from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionResponse
+from app.services import permission_service
+from app.utils.response import success_response, error_response, not_found_response
+
+router = APIRouter(prefix="/permissions", tags=["Permissions"])
+
+
+@router.post("", response_model=ApiResponse, status_code=201)
+def create_permission(
+    permission: PermissionCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new permission."""
+    try:
+        # Check if permission already exists
+        existing = permission_service.get_permission_by_name(db, permission.name)
+        if existing:
+            return error_response(
+                message="Permission with this name already exists",
+                code=409
+            )
+        
+        db_permission = permission_service.create_permission(db, permission)
+        return success_response(
+            message="Permission created successfully",
+            data=PermissionResponse.model_validate(db_permission).model_dump(),
+            code=201
+        )
+    except IntegrityError:
+        db.rollback()
+        return error_response(
+            message="Database integrity error",
+            code=500
+        )
+
+
+@router.get("", response_model=ApiResponse)
+def list_permissions(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Get list of all permissions."""
+    permissions = permission_service.get_permissions(db, skip=skip, limit=limit)
+    return success_response(
+        message="Permissions retrieved successfully",
+        data=[PermissionResponse.model_validate(p).model_dump() for p in permissions],
+        meta={"total": len(permissions)}
+    )
+
+
+@router.get("/{permission_id}", response_model=ApiResponse)
+def get_permission(
+    permission_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Get a specific permission by ID."""
+    db_permission = permission_service.get_permission(db, permission_id)
+    if not db_permission:
+        return not_found_response("Permission")
+    
+    return success_response(
+        message="Permission retrieved successfully",
+        data=PermissionResponse.model_validate(db_permission).model_dump()
+    )
+
+
+@router.patch("/{permission_id}", response_model=ApiResponse)
+def update_permission(
+    permission_id: UUID,
+    permission_update: PermissionUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a permission."""
+    try:
+        db_permission = permission_service.update_permission(db, permission_id, permission_update)
+        if not db_permission:
+            return not_found_response("Permission")
+        
+        return success_response(
+            message="Permission updated successfully",
+            data=PermissionResponse.model_validate(db_permission).model_dump()
+        )
+    except IntegrityError:
+        db.rollback()
+        return error_response(
+            message="Permission with this name already exists",
+            code=409
+        )
+
+
+@router.delete("/{permission_id}", response_model=ApiResponse)
+def delete_permission(
+    permission_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Delete a permission."""
+    success = permission_service.delete_permission(db, permission_id)
+    if not success:
+        return not_found_response("Permission")
+    
+    return success_response(
+        message="Permission deleted successfully",
+        code=200
+    )
