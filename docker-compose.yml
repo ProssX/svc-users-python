@@ -17,6 +17,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - svc-users-network
+
+  app:
+    build: .
+    container_name: svc-users-app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/svc_users
+      PORT: 8001
+      HOST: 0.0.0.0
+      ENVIRONMENT: development
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - svc-users-network
 
 volumes:
   postgres_data:
+
+networks:
+  svc-users-network:
+    driver: bridge
