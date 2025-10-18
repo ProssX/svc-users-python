@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     # Security
     secret_key: str = "change-me-in-production"
     
+    # JWT Configuration
+    jwt_algorithm: str = "RS256"
+    jwt_issuer: str = "https://api.example.com"
+    jwt_audience: str = "https://api.example.com"
+    jwt_expiration_days: int = 7
+    jwt_kid: str = "auth-2025-10-15"
+    
+    # RSA Keys (base64-encoded PEM format stored in environment variables)
+    jwt_private_key: str
+    jwt_public_key: str
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

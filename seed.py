@@ -3,10 +3,14 @@ Database seeding script.
 Initializes the database with default roles and permissions.
 """
 import sys
+import uuid
 from sqlalchemy.orm import Session
 from app.database import engine, SessionLocal, init_db
 from app.models import Permission, Role, Account
 from app.services.auth_service import hash_password
+
+# Default organization ID for seed accounts
+DEFAULT_ORG_ID = uuid.uuid4()
 
 
 def seed_permissions(db: Session):
@@ -109,7 +113,8 @@ def seed_accounts(db: Session, admin_role, user_role):
         admin_account = Account(
             email=admin_email,
             password_hash=hash_password("admin123"),  # Change this in production!
-            role_id=admin_role.id
+            role_id=admin_role.id,
+            organization_id=DEFAULT_ORG_ID
         )
         db.add(admin_account)
         db.commit()
@@ -124,7 +129,8 @@ def seed_accounts(db: Session, admin_role, user_role):
         user_account = Account(
             email=user_email,
             password_hash=hash_password("user123"),  # Change this in production!
-            role_id=user_role.id
+            role_id=user_role.id,
+            organization_id=DEFAULT_ORG_ID
         )
         db.add(user_account)
         db.commit()

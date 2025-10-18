@@ -27,9 +27,26 @@ def get_permission_by_name(db: Session, name: str) -> Optional[Permission]:
     return db.query(Permission).filter(Permission.name == name).first()
 
 
-def get_permissions(db: Session, skip: int = 0, limit: int = 100) -> List[Permission]:
-    """Get list of permissions with pagination."""
-    return db.query(Permission).offset(skip).limit(limit).all()
+def get_permissions(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Permission], int]:
+    """
+    Get list of permissions with page-based pagination.
+    
+    Args:
+        db: Database session
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+        
+    Returns:
+        Tuple of (list of permissions, total count)
+    """
+    query = db.query(Permission)
+    total = query.count()
+    
+    # Calculate offset from page number
+    offset = (page - 1) * page_size
+    permissions = query.offset(offset).limit(page_size).all()
+    
+    return permissions, total
 
 
 def update_permission(db: Session, permission_id: UUID, permission_update: PermissionUpdate) -> Optional[Permission]:

@@ -4,5 +4,8 @@ sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 pydantic[email]==2.5.0
 pydantic-settings==2.1.0
-passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
 python-dotenv==1.0.0
+pyjwt[crypto]==2.8.0
+cryptography==41.0.7
+uuid-utils==0.6.1

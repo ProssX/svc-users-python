@@ -28,9 +28,26 @@ def get_role_by_name(db: Session, name: str) -> Optional[Role]:
     return db.query(Role).filter(Role.name == name).first()
 
 
-def get_roles(db: Session, skip: int = 0, limit: int = 100) -> List[Role]:
-    """Get list of roles with pagination."""
-    return db.query(Role).offset(skip).limit(limit).all()
+def get_roles(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Role], int]:
+    """
+    Get list of roles with page-based pagination.
+    
+    Args:
+        db: Database session
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+        
+    Returns:
+        Tuple of (list of roles, total count)
+    """
+    query = db.query(Role)
+    total = query.count()
+    
+    # Calculate offset from page number
+    offset = (page - 1) * page_size
+    roles = query.offset(offset).limit(page_size).all()
+    
+    return roles, total
 
 
 def update_role(db: Session, role_id: UUID, role_update: RoleUpdate) -> Optional[Role]:

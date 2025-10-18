@@ -1,4 +1,4 @@
-# Dockerfile for Elicitation AI Service
+# Dockerfile for Auth Service
 # Multi-stage build for production-ready Python FastAPI app
 
 FROM python:3.11-slim as base
@@ -25,8 +25,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
-COPY prompts/ ./prompts/
-COPY data/ ./data/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \

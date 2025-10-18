@@ -1,6 +1,7 @@
 """
 Account service - business logic for account operations.
 """
+import uuid
 from uuid import UUID
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -16,8 +17,10 @@ def create_account(db: Session, account: AccountCreate) -> Account:
     
     db_account = Account(
         email=account.email,
+        entity_id=uuid.uuid4(),  # Generate UUID for entity_id
         password_hash=hashed_password,
-        role_id=account.role_id
+        role_id=account.role_id,
+        organization_id=account.organization_id
     )
     db.add(db_account)
     db.commit()
@@ -30,9 +33,26 @@ def get_account_by_email(db: Session, email: str) -> Optional[Account]:
     return db.query(Account).filter(Account.email == email).first()
 
 
-def get_accounts(db: Session, skip: int = 0, limit: int = 100) -> List[Account]:
-    """Get list of accounts with pagination."""
-    return db.query(Account).offset(skip).limit(limit).all()
+def get_accounts(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Account], int]:
+    """
+    Get list of accounts with page-based pagination.
+    
+    Args:
+        db: Database session
+        page: Page number (1-indexed)
+        page_size: Number of items per page
+        
+    Returns:
+        Tuple of (list of accounts, total count)
+    """
+    query = db.query(Account)
+    total = query.count()
+    
+    # Calculate offset from page number
+    offset = (page - 1) * page_size
+    accounts = query.offset(offset).limit(page_size).all()
+    
+    return accounts, total
 
 
 def update_account(db: Session, email: str, account_update: AccountUpdate) -> Optional[Account]:

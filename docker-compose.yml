@@ -23,6 +23,8 @@ services:
   app:
     build: .
     container_name: svc-users-app
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/svc_users
       PORT: 8001

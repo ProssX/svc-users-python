@@ -45,16 +45,32 @@ def create_permission(
 
 @router.get("", response_model=ApiResponse)
 def list_permissions(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 10,
     db: Session = Depends(get_db)
 ):
-    """Get list of all permissions."""
-    permissions = permission_service.get_permissions(db, skip=skip, limit=limit)
+    """
+    Get list of all permissions with pagination.
+    
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of items per page (default: 10)
+    """
+    permissions, total_items = permission_service.get_permissions(db, page=page, page_size=page_size)
+    
+    # Calculate total pages
+    import math
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
+    
     return success_response(
         message="Permissions retrieved successfully",
         data=[PermissionResponse.model_validate(p).model_dump() for p in permissions],
-        meta={"total": len(permissions)}
+        meta={
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages
+        }
     )
 
 

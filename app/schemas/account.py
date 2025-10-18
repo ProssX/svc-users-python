@@ -15,21 +15,26 @@ class AccountBase(BaseModel):
 
 class AccountCreate(AccountBase):
     """Schema for creating a new account."""
-    password: str = Field(..., min_length=8, max_length=100, description="User password (min 8 characters)")
+    password: str = Field(..., min_length=8, max_length=72, description="User password (min 8, max 72 characters - bcrypt limit)")
+    entity_id: UUID = Field(..., description="Unique entity identifier for this account")
     role_id: UUID = Field(..., description="Role ID to assign to this account")
+    organization_id: UUID = Field(..., description="Organization ID to link this account")
 
 
 class AccountUpdate(BaseModel):
     """Schema for updating an account."""
     role_id: Optional[UUID] = Field(None, description="New role ID")
-    password: Optional[str] = Field(None, min_length=8, max_length=100, description="New password")
+    password: Optional[str] = Field(None, min_length=8, max_length=72, description="New password (min 8, max 72 characters - bcrypt limit)")
 
 
 class AccountResponse(AccountBase):
     """Schema for account response (without password)."""
-    role_id: UUID
-    created_at: datetime
-    updated_at: datetime
+    # Entity identifier (UUID) - present in responses
+    entity_id: UUID = Field(..., description="Unique entity identifier for this account")
+    organization_id: UUID = Field(..., description="Organization this account belongs to")
+    role_id: UUID = Field(..., description="Role assigned to this account")
+    created_at: datetime = Field(..., description="Account creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     class Config:
         from_attributes = True

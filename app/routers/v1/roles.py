@@ -45,16 +45,32 @@ def create_role(
 
 @router.get("", response_model=ApiResponse)
 def list_roles(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 10,
     db: Session = Depends(get_db)
 ):
-    """Get list of all roles."""
-    roles = role_service.get_roles(db, skip=skip, limit=limit)
+    """
+    Get list of all roles with pagination.
+    
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of items per page (default: 10)
+    """
+    roles, total_items = role_service.get_roles(db, page=page, page_size=page_size)
+    
+    # Calculate total pages
+    import math
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
+    
     return success_response(
         message="Roles retrieved successfully",
         data=[RoleWithPermissions.model_validate(r).model_dump() for r in roles],
-        meta={"total": len(roles)}
+        meta={
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages
+        }
     )
 
 
