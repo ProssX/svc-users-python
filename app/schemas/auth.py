@@ -1,7 +1,7 @@
 """
 Authentication schemas for JWT login and JWKS.
 """
-from typing import List
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -58,6 +58,7 @@ class JWK(BaseModel):
     alg: str = Field(default="RS256", description="Algorithm")
     n: str = Field(..., description="RSA modulus (base64url-encoded)")
     e: str = Field(..., description="RSA exponent (base64url-encoded)")
+    publicKey: str = Field(..., description="Public key in base64-encoded PEM format")
 
     class Config:
         json_schema_extra = {
@@ -67,7 +68,8 @@ class JWK(BaseModel):
                 "use": "sig",
                 "alg": "RS256",
                 "n": "sXQ0V3eZb0i2F8lYt7zj3V7p9jYj6Jm0JmR2Y3x...",
-                "e": "AQAB"
+                "e": "AQAB",
+                "publicKey": "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF3TXlWY0dQYzlyMGdheEQ0MXBSSQo0QWlBZ2lRczVpOFI2bDNFWDBvRGhiSDZsUzJpYndRRDBQZzNOMWpxNGViOTRGam1hZG0zNXQyUFM4UlU4cUZrCng5RVphdm5XaHFpa2tJd1lZdVFPZGRlTGxTNVFuY1d3RDBScmxVWE1wVk92Z2MvbHNJL05PQk9OaGllTlNYZXkKVDNlTjhxWkF5cEF6WkpWckNOWDlZZVVEQzUrdHIvdUc1djgxaXlLcmNFUjI3cXU2amVqNnFzTkJxaUNqMDFzZwp6VFpxa3BFUk5Oc2dBZTVjbVNUWE1kQzhRL3p0TEgxeEx6R3Bzbng2R0ZuNTNDRk85OTk3N1VldjRxbVFXR3pFCmhna21yb016OHpMa0xNYURaV2JiUGg5ZWtpSHdSNlArSDVLQVN5d3djTHpxMExiZzJEaDlaQjBmUmNXaWFSTzUKUFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
             }
         }
 
@@ -92,5 +94,36 @@ class JWKS(BaseModel):
                         "e": "AQAB"
                     }
                 ]
+            }
+        }
+
+
+class DecodedToken(BaseModel):
+    """
+    Decoded JWT token payload.
+    Used for GET /auth/me endpoint response.
+    """
+    sub: str = Field(..., description="Subject (User ID)")
+    organizationId: str = Field(..., description="Organization ID")
+    iss: str = Field(..., description="Issuer")
+    aud: str = Field(..., description="Audience")
+    iat: int = Field(..., description="Issued at timestamp (epoch)")
+    exp: int = Field(..., description="Expiration timestamp (epoch)")
+    jti: str = Field(..., description="JWT ID (UUID v7)")
+    roles: List[str] = Field(default_factory=list, description="User roles")
+    permissions: List[str] = Field(default_factory=list, description="User permissions")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "sub": "01932e5f-8b2a-7a1c-9f8e-3c4b5d6e7f8a",
+                "organizationId": "01932e5f-8b2a-7a1c-9f8e-3c4b5d6e7f8b",
+                "iss": "https://api.example.com",
+                "aud": "https://api.example.com",
+                "iat": 1729353600,
+                "exp": 1729958400,
+                "jti": "01932e5f-8b2a-7a1c-9f8e-3c4b5d6e7f8c",
+                "roles": ["Admin"],
+                "permissions": ["users.create", "users.read", "users.update", "users.delete"]
             }
         }

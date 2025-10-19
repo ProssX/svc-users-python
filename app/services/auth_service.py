@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models.account import Account
-from app.schemas.auth import TokenResult, JWK, JWKS
+from app.schemas.auth import TokenResult, JWK, JWKS, DecodedToken
 
 # Cache for loaded keys (avoid reloading from env on every request)
 _private_key_cache = None
@@ -243,15 +243,74 @@ def get_jwks() -> JWKS:
     n = int_to_base64url(public_numbers.n)
     e = int_to_base64url(public_numbers.e)
     
-    # Create JWK
+    # Get the base64-encoded public key from settings (same format as in .env)
+    # This is the base64-encoded PEM format
+    public_key_base64 = settings.jwt_public_key
+    
+    # Create JWK with base64-encoded public key
     jwk = JWK(
         kty="RSA",
         kid=settings.jwt_kid,
         use="sig",
         alg=settings.jwt_algorithm,
         n=n,
-        e=e
+        e=e,
+        publicKey=public_key_base64
     )
     
     # Return JWKS with single key
     return JWKS(keys=[jwk])
+
+
+def verify_and_decode_token(token: str) -> DecodedToken:
+    """
+    Verify JWT signature and decode token payload.
+    
+    This function validates the token's signature using the public key,
+    checks the expiration, issuer, and audience, then returns the decoded payload.
+    
+    Args:
+        token: JWT token string (without "Bearer " prefix)
+    
+    Returns:
+        DecodedToken object with all token claims
+    
+    Raises:
+        jwt.ExpiredSignatureError: If token has expired
+        jwt.InvalidTokenError: If token is invalid or signature verification fails
+        jwt.InvalidIssuerError: If issuer doesn't match
+        jwt.InvalidAudienceError: If audience doesn't match
+    """
+    settings = get_settings()
+    public_key = load_public_key()
+    
+    # Decode and verify JWT token
+    # This will raise an exception if verification fails
+    payload = jwt.decode(
+        token,
+        public_key,
+        algorithms=[settings.jwt_algorithm],
+        issuer=settings.jwt_issuer,
+        audience=settings.jwt_audience,
+        options={
+            "verify_signature": True,
+            "verify_exp": True,
+            "verify_iss": True,
+            "verify_aud": True,
+            "require": ["sub", "iss", "aud", "iat", "exp", "jti"]
+        }
+    )
+    
+    # Return decoded token as structured object
+    return DecodedToken(
+        sub=payload["sub"],
+        organizationId=payload.get("organizationId", ""),
+        iss=payload["iss"],
+        aud=payload["aud"],
+        iat=payload["iat"],
+        exp=payload["exp"],
+        jti=payload["jti"],
+        roles=payload.get("roles", []),
+        permissions=payload.get("permissions", [])
+    )
+

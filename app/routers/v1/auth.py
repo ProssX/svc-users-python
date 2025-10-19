@@ -1,13 +1,14 @@
 """
 Authentication endpoints - login and JWKS.
 """
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException, Header
 from sqlalchemy.orm import Session
+import jwt
 
 from app.database import get_db
 from app.schemas.response import ApiResponse
-from app.schemas.auth import TokenRequest, TokenResult, JWKS
-from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks
+from app.schemas.auth import TokenRequest, TokenResult, JWKS, DecodedToken
+from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token
 from app.utils.response import success_response, error_response
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -84,3 +85,79 @@ def get_jwks_endpoint():
     - Private key is never exposed
     """
     return get_jwks()
+
+
+@router.get("/me", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+def verify_token(authorization: str = Header(...)):
+    """
+    Verify JWT token and return decoded payload.
+    
+    This endpoint validates the JWT signature and returns all claims
+    contained in the token if validation is successful.
+    
+    **Authentication:**
+    - Requires `Authorization` header with format: `Bearer <token>`
+    - Token signature is verified using the public key
+    - Token expiration is checked
+    - Issuer and audience are validated
+    
+    **Response:**
+    - Returns decoded token payload with all claims
+    - Includes user ID, organization ID, roles, and permissions
+    
+    **Error Responses:**
+    - 401: Missing or malformed Authorization header
+    - 401: Invalid token signature
+    - 401: Token has expired
+    - 401: Invalid issuer or audience
+    """
+    # Check if Authorization header is present and starts with "Bearer "
+    if not authorization or not authorization.startswith("Bearer "):
+        return error_response(
+            message="Missing or malformed Authorization header. Expected format: 'Bearer <token>'",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Extract token from "Bearer <token>"
+    token = authorization.split(" ")[1]
+    
+    try:
+        # Verify signature and decode token
+        decoded_token = verify_and_decode_token(token)
+        
+        # Return success response with decoded token
+        return success_response(
+            message="Token verified successfully.",
+            data=decoded_token.model_dump(),
+            code=status.HTTP_200_OK
+        )
+    
+    except jwt.ExpiredSignatureError:
+        return error_response(
+            message="Token has expired.",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    except jwt.InvalidIssuerError:
+        return error_response(
+            message="Invalid token issuer.",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    except jwt.InvalidAudienceError:
+        return error_response(
+            message="Invalid token audience.",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    except jwt.InvalidTokenError as e:
+        return error_response(
+            message=f"Invalid token: {str(e)}",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    except Exception as e:
+        return error_response(
+            message=f"Token verification failed: {str(e)}",
+            code=status.HTTP_401_UNAUTHORIZED
+        )
