@@ -8,7 +8,7 @@ import jwt
 from app.database import get_db
 from app.schemas.response import ApiResponse, TypedApiResponse
 from app.schemas.auth import TokenRequest, TokenResult, JWKS, DecodedToken
-from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token
+from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token, generate_temporary_registration_token
 from app.utils.response import success_response, error_response
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -62,6 +62,51 @@ def login(
         message="Token issued.",
         data=token_result.model_dump(),
         code=status.HTTP_200_OK
+    )
+
+
+@router.post("/register", 
+    response_model=TypedApiResponse[TokenResult], 
+    status_code=status.HTTP_201_CREATED,
+    summary="Register and get temporary token",
+    description="Issues a temporary token with limited permissions for initial setup"
+)
+def register(credentials: TokenRequest):
+    """
+    Register and issue temporary JWT token.
+    
+    **Registration Flow:**
+    1. Validates email and password format (no database lookup)
+    2. Generates RS256-signed JWT with 15-minute TTL
+    3. Includes fixed permissions for initial setup operations
+    
+    **Token Claims:**
+    - Standard: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` (UUID v7)
+    - Custom: `organizationId` (empty), `roles` (empty), `permissions` (fixed)
+    
+    **Fixed Permissions:**
+    - create_user: Create new user accounts
+    - create_employee: Create employee records
+    - create_organization: Create organization records
+    - read_business_types: Read business type data
+    
+    **Response:**
+    - Returns token string, type, and expiration timestamp
+    - Token expires in 15 minutes
+    
+    **Security:**
+    - This is a public endpoint (no authentication required)
+    - Token has limited permissions and short expiration
+    - No database validation - format validation only
+    """
+    # Generate temporary registration token with fixed permissions
+    token_result = generate_temporary_registration_token(credentials.email)
+    
+    # Return success response with token
+    return success_response(
+        message="Registration token issued.",
+        data=token_result.model_dump(),
+        code=status.HTTP_201_CREATED
     )
 
 
