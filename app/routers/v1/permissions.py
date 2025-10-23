@@ -1,12 +1,13 @@
 """
 Permission endpoints - CRUD operations for permissions.
 """
+from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.database import get_db
-from app.schemas.response import ApiResponse
+from app.schemas.response import TypedApiResponse, PaginationMeta
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionResponse
 from app.services import permission_service
 from app.utils.response import success_response, error_response, not_found_response
@@ -14,7 +15,10 @@ from app.utils.response import success_response, error_response, not_found_respo
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
 
-@router.post("", response_model=ApiResponse, status_code=201)
+@router.post("", 
+    response_model=TypedApiResponse[PermissionResponse], 
+    status_code=201
+)
 def create_permission(
     permission: PermissionCreate,
     db: Session = Depends(get_db)
@@ -43,7 +47,9 @@ def create_permission(
         )
 
 
-@router.get("", response_model=ApiResponse)
+@router.get("", 
+    response_model=TypedApiResponse[List[PermissionResponse]]
+)
 def list_permissions(
     page: int = 1,
     page_size: int = 10,
@@ -62,19 +68,24 @@ def list_permissions(
     import math
     total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
     
+    # Create pagination metadata
+    pagination_meta = PaginationMeta(
+        page=page,
+        page_size=page_size,
+        total_items=total_items,
+        total_pages=total_pages
+    )
+    
     return success_response(
         message="Permissions retrieved successfully",
         data=[PermissionResponse.model_validate(p).model_dump() for p in permissions],
-        meta={
-            "page": page,
-            "page_size": page_size,
-            "total_items": total_items,
-            "total_pages": total_pages
-        }
+        meta=pagination_meta.model_dump()
     )
 
 
-@router.get("/{permission_id}", response_model=ApiResponse)
+@router.get("/{permission_id}", 
+    response_model=TypedApiResponse[PermissionResponse]
+)
 def get_permission(
     permission_id: UUID,
     db: Session = Depends(get_db)
@@ -90,7 +101,9 @@ def get_permission(
     )
 
 
-@router.patch("/{permission_id}", response_model=ApiResponse)
+@router.patch("/{permission_id}", 
+    response_model=TypedApiResponse[PermissionResponse]
+)
 def update_permission(
     permission_id: UUID,
     permission_update: PermissionUpdate,
@@ -114,7 +127,9 @@ def update_permission(
         )
 
 
-@router.delete("/{permission_id}", response_model=ApiResponse)
+@router.delete("/{permission_id}", 
+    response_model=TypedApiResponse[None]
+)
 def delete_permission(
     permission_id: UUID,
     db: Session = Depends(get_db)

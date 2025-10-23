@@ -4,7 +4,7 @@ Role schemas for request/response validation.
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.schemas.permission import PermissionResponse
 
 
@@ -26,21 +26,55 @@ class RoleUpdate(BaseModel):
 
 
 class RoleResponse(RoleBase):
-    """Schema for role response."""
-    id: UUID
-    created_at: datetime
-    updated_at: datetime
+    """Schema for role response with realistic examples."""
+    id: UUID = Field(..., description="Unique role identifier")
+    created_at: datetime = Field(..., description="Role creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "Admin",
+                "description": "Administrator role with full permissions",
+                "id": "d2938640-8cd4-4fe1-a3f4-8b9d4972eb2a",
+                "created_at": "2025-10-22T00:58:32.178170",
+                "updated_at": "2025-10-22T00:58:32.178172"
+            }
+        }
+    )
 
 
 class RoleWithPermissions(RoleResponse):
-    """Schema for role response with permissions included."""
-    permissions: List[PermissionResponse] = []
+    """Schema for role response with permissions included and realistic examples."""
+    permissions: List[PermissionResponse] = Field(default=[], description="List of permissions assigned to this role")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "Admin",
+                "description": "Administrator role with full permissions",
+                "id": "d2938640-8cd4-4fe1-a3f4-8b9d4972eb2a",
+                "created_at": "2025-10-22T00:58:32.178170",
+                "updated_at": "2025-10-22T00:58:32.178172",
+                "permissions": [
+                    {
+                        "name": "users:create",
+                        "id": "18e6d529-e8b1-4b48-aebc-d19b4e627e15",
+                        "created_at": "2025-10-22T00:58:32.178170",
+                        "updated_at": "2025-10-22T00:58:32.178172"
+                    },
+                    {
+                        "name": "users:read",
+                        "id": "28f7e639-f9c2-5c59-bfcd-e2ac5f738f26",
+                        "created_at": "2025-10-22T00:58:32.178170",
+                        "updated_at": "2025-10-22T00:58:32.178172"
+                    }
+                ]
+            }
+        }
+    )
 
 
 class AssignPermissions(BaseModel):

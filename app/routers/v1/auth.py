@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import jwt
 
 from app.database import get_db
-from app.schemas.response import ApiResponse
+from app.schemas.response import ApiResponse, TypedApiResponse
 from app.schemas.auth import TokenRequest, TokenResult, JWKS, DecodedToken
 from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token
 from app.utils.response import success_response, error_response
@@ -14,7 +14,11 @@ from app.utils.response import success_response, error_response
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/login", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+@router.post("/login", 
+    response_model=TypedApiResponse[TokenResult], 
+    status_code=status.HTTP_200_OK,
+
+)
 def login(
     credentials: TokenRequest,
     db: Session = Depends(get_db)
@@ -61,7 +65,7 @@ def login(
     )
 
 
-@router.get("/jwks", response_model=JWKS, status_code=status.HTTP_200_OK)
+@router.get("/jwks", response_model=TypedApiResponse[JWKS], status_code=status.HTTP_200_OK)
 def get_jwks_endpoint():
     """
     Get JSON Web Key Set (JWKS).
@@ -84,10 +88,15 @@ def get_jwks_endpoint():
     - Public keys can be safely shared and distributed
     - Private key is never exposed
     """
-    return get_jwks()
+    jwks_data = get_jwks()
+    return success_response(
+        message="JWKS retrieved successfully.",
+        data=jwks_data.model_dump(),
+        code=status.HTTP_200_OK
+    )
 
 
-@router.get("/me", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+@router.get("/me", response_model=TypedApiResponse[DecodedToken], status_code=status.HTTP_200_OK)
 def verify_token(authorization: str = Header(...)):
     """
     Verify JWT token and return decoded payload.

@@ -15,7 +15,11 @@ from app.utils.response import success_response, error_response, not_found_respo
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
 
 
-@router.post("", response_model=TypedApiResponse[AccountResponse], status_code=201)
+@router.post("", 
+    response_model=TypedApiResponse[AccountResponse], 
+    status_code=201,
+
+)
 def create_account(
     account: AccountCreate,
     db: Session = Depends(get_db)
@@ -130,7 +134,9 @@ def update_account(
         )
 
 
-@router.delete("/{email}", response_model=ApiResponse)
+@router.delete("/{email}", 
+    response_model=TypedApiResponse[AccountResponse]
+)
 def delete_account(
     email: str,
     db: Session = Depends(get_db)

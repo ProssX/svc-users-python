@@ -58,4 +58,7 @@ htmlcov/
 # Strands
 .strands/
 
+# Instructions
+.github/instructions/
+
 
