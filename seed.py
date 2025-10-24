@@ -18,18 +18,18 @@ def seed_permissions(db: Session):
     print("Creating permissions...")
     
     permission_names = [
-        "accounts.create",
-        "accounts.read",
-        "accounts.update",
-        "accounts.delete",
-        "roles.create",
-        "roles.read",
-        "roles.update",
-        "roles.delete",
-        "permissions.create",
-        "permissions.read",
-        "permissions.update",
-        "permissions.delete",
+        "accounts:create",
+        "accounts:read",
+        "accounts:update",
+        "accounts:delete",
+        "roles:create",
+        "roles:read",
+        "roles:update",
+        "roles:delete",
+        "permissions:create",
+        "permissions:read",
+        "permissions:update",
+        "permissions:delete",
     ]
     
     permissions = []
@@ -71,8 +71,8 @@ def seed_roles(db: Session, permissions):
     manager_role = db.query(Role).filter(Role.name == "Manager").first()
     if not manager_role:
         manager_permissions = [p for p in permissions if 
-                              p.name in ["accounts.read", "accounts.update", 
-                                        "roles.read", "permissions.read"]]
+                              p.name in ["accounts:read", "accounts:update", 
+                                        "roles:read", "permissions:read"]]
         manager_role = Role(
             name="Manager",
             description="Team management access"
@@ -87,7 +87,7 @@ def seed_roles(db: Session, permissions):
     # User role - basic read access
     user_role = db.query(Role).filter(Role.name == "User").first()
     if not user_role:
-        user_permissions = [p for p in permissions if p.name == "accounts.read"]
+        user_permissions = [p for p in permissions if p.name == "accounts:read"]
         user_role = Role(
             name="User",
             description="Basic user access"

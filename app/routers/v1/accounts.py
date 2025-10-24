@@ -9,7 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.schemas.response import ApiResponse, TypedApiResponse
 from app.schemas.account import AccountCreate, AccountUpdate, AccountResponse, AccountWithRole
+from app.schemas.auth import DecodedToken
 from app.services import account_service, role_service
+from app.dependencies.permissions import require_permissions
 from app.utils.response import success_response, error_response, not_found_response, validation_error_response
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
@@ -22,9 +24,11 @@ router = APIRouter(prefix="/accounts", tags=["Accounts"])
 )
 def create_account(
     account: AccountCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:create"]))
 ):
     """Create a new account with email and password."""
+    
     try:
         # Check if email already exists
         existing = account_service.get_account_by_email(db, account.email)
@@ -59,7 +63,8 @@ def create_account(
 def list_accounts(
     page: int = 1,
     page_size: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:read"]))
 ):
     """
     Get list of all accounts with pagination.
@@ -68,6 +73,7 @@ def list_accounts(
         page: Page number (1-indexed)
         page_size: Number of items per page (default: 10)
     """
+    
     accounts, total_items = account_service.get_accounts(db, page=page, page_size=page_size)
     
     # Calculate total pages
@@ -89,9 +95,11 @@ def list_accounts(
 @router.get("/{email}", response_model=TypedApiResponse[AccountWithRole])
 def get_account(
     email: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:read"]))
 ):
     """Get a specific account by email."""
+    
     db_account = account_service.get_account_by_email(db, email)
     if not db_account:
         return not_found_response("Account")
@@ -106,9 +114,11 @@ def get_account(
 def update_account(
     email: str,
     account_update: AccountUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:update"]))
 ):
     """Update an account."""
+    
     try:
         # If updating role, check if it exists
         if account_update.role_id:
@@ -139,9 +149,11 @@ def update_account(
 )
 def delete_account(
     email: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:delete"]))
 ):
     """Delete an account."""
+    
     success = account_service.delete_account(db, email)
     if not success:
         return not_found_response("Account")

@@ -9,7 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.schemas.response import ApiResponse, TypedApiResponse, PaginationMeta
 from app.schemas.role import RoleCreate, RoleUpdate, RoleResponse, RoleWithPermissions, AssignPermissions
+from app.schemas.auth import DecodedToken
 from app.services import role_service
+from app.dependencies.permissions import require_permissions
 from app.utils.response import success_response, error_response, not_found_response
 
 router = APIRouter(prefix="/roles", tags=["Roles"])
@@ -21,9 +23,11 @@ router = APIRouter(prefix="/roles", tags=["Roles"])
 )
 def create_role(
     role: RoleCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:create"]))
 ):
     """Create a new role."""
+    
     try:
         # Check if role already exists
         existing = role_service.get_role_by_name(db, role.name)
@@ -53,7 +57,8 @@ def create_role(
 def list_roles(
     page: int = 1,
     page_size: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:read"]))
 ):
     """
     Get list of all roles with pagination.
@@ -85,7 +90,8 @@ def list_roles(
 )
 def get_role(
     role_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:read"]))
 ):
     """Get a specific role by ID with its permissions."""
     db_role = role_service.get_role(db, role_id)
@@ -104,7 +110,8 @@ def get_role(
 def update_role(
     role_id: UUID,
     role_update: RoleUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Update a role."""
     try:
@@ -129,7 +136,8 @@ def update_role(
 )
 def delete_role(
     role_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:delete"]))
 ):
     """Delete a role."""
     success = role_service.delete_role(db, role_id)
@@ -148,7 +156,8 @@ def delete_role(
 def assign_permissions(
     role_id: UUID,
     permissions: AssignPermissions,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Assign permissions to a role. Replaces existing permissions."""
     db_role = role_service.assign_permissions_to_role(db, role_id, permissions.permission_ids)
@@ -167,7 +176,8 @@ def assign_permissions(
 def remove_permission(
     role_id: UUID,
     permission_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Remove a specific permission from a role."""
     db_role = role_service.remove_permission_from_role(db, role_id, permission_id)

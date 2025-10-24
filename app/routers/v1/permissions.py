@@ -9,7 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.schemas.response import TypedApiResponse, PaginationMeta
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionResponse
+from app.schemas.auth import DecodedToken
 from app.services import permission_service
+from app.dependencies.permissions import require_permissions
 from app.utils.response import success_response, error_response, not_found_response
 
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
@@ -21,7 +23,8 @@ router = APIRouter(prefix="/permissions", tags=["Permissions"])
 )
 def create_permission(
     permission: PermissionCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["permissions:read"]))
 ):
     """Create a new permission."""
     try:
@@ -53,7 +56,8 @@ def create_permission(
 def list_permissions(
     page: int = 1,
     page_size: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["permissions:read"]))
 ):
     """
     Get list of all permissions with pagination.
@@ -88,7 +92,8 @@ def list_permissions(
 )
 def get_permission(
     permission_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["permissions:read"]))
 ):
     """Get a specific permission by ID."""
     db_permission = permission_service.get_permission(db, permission_id)
@@ -107,7 +112,8 @@ def get_permission(
 def update_permission(
     permission_id: UUID,
     permission_update: PermissionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["permissions:update"]))
 ):
     """Update a permission."""
     try:
@@ -132,7 +138,8 @@ def update_permission(
 )
 def delete_permission(
     permission_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["permissions:delete"]))
 ):
     """Delete a permission."""
     success = permission_service.delete_permission(db, permission_id)

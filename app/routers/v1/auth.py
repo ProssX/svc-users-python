@@ -10,6 +10,7 @@ from app.schemas.response import ApiResponse, TypedApiResponse
 from app.schemas.auth import TokenRequest, TokenResult, JWKS, DecodedToken
 from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token, generate_temporary_registration_token
 from app.utils.response import success_response, error_response
+from app.dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -142,7 +143,7 @@ def get_jwks_endpoint():
 
 
 @router.get("/me", response_model=TypedApiResponse[DecodedToken], status_code=status.HTTP_200_OK)
-def verify_token(authorization: str = Header(...)):
+async def verify_token(current_user: DecodedToken = Depends(get_current_user)):
     """
     Verify JWT token and return decoded payload.
     
@@ -165,53 +166,10 @@ def verify_token(authorization: str = Header(...)):
     - 401: Token has expired
     - 401: Invalid issuer or audience
     """
-    # Check if Authorization header is present and starts with "Bearer "
-    if not authorization or not authorization.startswith("Bearer "):
-        return error_response(
-            message="Missing or malformed Authorization header. Expected format: 'Bearer <token>'",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    # Extract token from "Bearer <token>"
-    token = authorization.split(" ")[1]
-    
-    try:
-        # Verify signature and decode token
-        decoded_token = verify_and_decode_token(token)
-        
-        # Return success response with decoded token
-        return success_response(
-            message="Token verified successfully.",
-            data=decoded_token.model_dump(),
-            code=status.HTTP_200_OK
-        )
-    
-    except jwt.ExpiredSignatureError:
-        return error_response(
-            message="Token has expired.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidIssuerError:
-        return error_response(
-            message="Invalid token issuer.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidAudienceError:
-        return error_response(
-            message="Invalid token audience.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidTokenError as e:
-        return error_response(
-            message=f"Invalid token: {str(e)}",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except Exception as e:
-        return error_response(
-            message=f"Token verification failed: {str(e)}",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
+    # The authentication dependency handles all token validation
+    # and provides the decoded token as current_user
+    return success_response(
+        message="Token verified successfully.",
+        data=current_user.model_dump(),
+        code=status.HTTP_200_OK
+    )

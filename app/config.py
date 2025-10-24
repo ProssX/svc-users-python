@@ -38,6 +38,20 @@ class Settings(BaseSettings):
     )
 
 
+# Public routes that don't require authentication
+PUBLIC_ROUTES = [
+    "/",
+    "/health",
+    "/api/v1/health", 
+    "/api/v1/auth/login",
+    "/api/v1/auth/register", 
+    "/api/v1/auth/jwks",
+    "/docs",
+    "/redoc",
+    "/openapi.json"
+]
+
+
 @lru_cache()
 def get_settings() -> Settings:
     """
