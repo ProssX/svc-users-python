@@ -262,6 +262,68 @@ def get_jwks() -> JWKS:
     return JWKS(keys=[jwk])
 
 
+def generate_temporary_registration_token(email: str) -> TokenResult:
+    """
+    Generate a temporary JWT token for registration with limited permissions.
+    
+    This token is issued for 15 minutes and includes specific permissions
+    needed for initial setup operations: create_user, create_employee, 
+    create_organization, read_business_types.
+    
+    Args:
+        email: User email address (used as subject)
+    
+    Returns:
+        TokenResult with token string and expiration timestamp
+    """
+    settings = get_settings()
+    
+    # Calculate timestamps - 15 minute expiration
+    now = datetime.utcnow()
+    expiration = now + timedelta(minutes=15)
+    iat = int(now.timestamp())
+    exp = int(expiration.timestamp())
+    
+    # Fixed permissions for registration token
+    permissions = [
+        "accounts:create",
+        "employees:create", 
+        "organizations:create",
+        "business_types:read"
+    ]
+    
+    # Build JWT payload
+    payload = {
+        "sub": email,  # Use email as subject instead of account entity_id
+        "organizationId": "",  # Empty organization_id
+        "iss": settings.jwt_issuer,  # Issuer
+        "aud": settings.jwt_audience,  # Audience
+        "iat": iat,  # Issued at (epoch seconds)
+        "exp": exp,  # Expires at (epoch seconds)
+        "jti": generate_uuid7(),  # JWT ID (UUID v7)
+        "roles": [],  # Empty roles array
+        "permissions": permissions  # Fixed permissions for registration
+    }
+    
+    # Load private key for signing
+    private_key = load_private_key()
+    
+    # Generate JWT token with RS256 algorithm
+    token = jwt.encode(
+        payload,
+        private_key,
+        algorithm=settings.jwt_algorithm,
+        headers={"kid": settings.jwt_kid}  # Key ID in header for rotation
+    )
+    
+    # Return token result
+    return TokenResult(
+        tokenType="Bearer",
+        token=token,
+        expiresAt=expiration.isoformat() + "Z"  # ISO 8601 format with Z suffix
+    )
+
+
 def verify_and_decode_token(token: str) -> DecodedToken:
     """
     Verify JWT signature and decode token payload.
