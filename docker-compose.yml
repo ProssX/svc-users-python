@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: svc_users
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - svc-users-network
+      - proocess-network
 
   app:
     build: .
@@ -36,11 +36,12 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - svc-users-network
+      - proocess-network
 
 volumes:
   postgres_data:
 
 networks:
-  svc-users-network:
+  proocess-network:
+    name: proocess-network
     driver: bridge

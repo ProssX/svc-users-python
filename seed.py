@@ -18,6 +18,7 @@ def seed_permissions(db: Session):
     print("Creating permissions...")
     
     permission_names = [
+        # Auth permissions
         "accounts:create",
         "accounts:read",
         "accounts:update",
@@ -30,6 +31,30 @@ def seed_permissions(db: Session):
         "permissions:read",
         "permissions:update",
         "permissions:delete",
+        # Organization permissions
+        "organization:read",
+        "organizations:read",
+        "organizations:create",
+        "organizations:delete",
+        "organizations:update",
+        # Employee permissions
+        "employee:create",
+        "employee:write",
+        "employee:update",
+        "employee:read",
+        "employee:delete",
+        # Process permissions
+        "process:read",
+        "process:create",
+        "process:delete",
+        "process:update",
+        # Interview permissions
+        "interviews:create",
+        "interviews:read",
+        "interviews:read_all",
+        "interviews:update",
+        "interviews:delete",
+        "interviews:export",
     ]
     
     permissions = []
@@ -52,6 +77,20 @@ def seed_permissions(db: Session):
 def seed_roles(db: Session, permissions):
     """Create default roles and assign permissions."""
     print("\nCreating roles...")
+    
+    # Organization Administrator role - all permissions
+    org_admin_role = db.query(Role).filter(Role.name == "Organization Administrator").first()
+    if not org_admin_role:
+        org_admin_role = Role(
+            name="Organization Administrator",
+            description="Full organizational access with all permissions"
+        )
+        org_admin_role.permissions = permissions
+        db.add(org_admin_role)
+        db.commit()
+        print(f"  ✓ Created role: Organization Administrator (with {len(permissions)} permissions)")
+    else:
+        print("  → Role already exists: Organization Administrator")
     
     # Admin role - all permissions
     admin_role = db.query(Role).filter(Role.name == "Admin").first()
@@ -99,12 +138,28 @@ def seed_roles(db: Session, permissions):
     else:
         print("  → Role already exists: User")
     
-    return admin_role, manager_role, user_role
+    return org_admin_role, admin_role, manager_role, user_role
 
 
-def seed_accounts(db: Session, admin_role, user_role):
+def seed_accounts(db: Session, org_admin_role, admin_role, user_role):
     """Create sample accounts (optional)."""
     print("\nCreating sample accounts...")
+    
+    # Organization Administrator account
+    org_admin_email = "org-admin@example.com"
+    org_admin_account = db.query(Account).filter(Account.email == org_admin_email).first()
+    if not org_admin_account:
+        org_admin_account = Account(
+            email=org_admin_email,
+            password_hash=hash_password("orgadmin123456"),  # Change this in production!
+            role_id=org_admin_role.id,
+            organization_id=DEFAULT_ORG_ID
+        )
+        db.add(org_admin_account)
+        db.commit()
+        print(f"  ✓ Created account: {org_admin_email} (password: orgadmin123456)")
+    else:
+        print(f"  → Account already exists: {org_admin_email}")
     
     # Admin account
     admin_email = "admin@example.com"
@@ -112,13 +167,13 @@ def seed_accounts(db: Session, admin_role, user_role):
     if not admin_account:
         admin_account = Account(
             email=admin_email,
-            password_hash=hash_password("admin123"),  # Change this in production!
+            password_hash=hash_password("admin123456"),  # Change this in production!
             role_id=admin_role.id,
             organization_id=DEFAULT_ORG_ID
         )
         db.add(admin_account)
         db.commit()
-        print(f"  ✓ Created account: {admin_email} (password: admin123)")
+        print(f"  ✓ Created account: {admin_email} (password: admin123456)")
     else:
         print(f"  → Account already exists: {admin_email}")
     
@@ -128,13 +183,13 @@ def seed_accounts(db: Session, admin_role, user_role):
     if not user_account:
         user_account = Account(
             email=user_email,
-            password_hash=hash_password("user123"),  # Change this in production!
+            password_hash=hash_password("user123456"),  # Change this in production!
             role_id=user_role.id,
             organization_id=DEFAULT_ORG_ID
         )
         db.add(user_account)
         db.commit()
-        print(f"  ✓ Created account: {user_email} (password: user123)")
+        print(f"  ✓ Created account: {user_email} (password: user123456)")
     else:
         print(f"  → Account already exists: {user_email}")
 
@@ -156,8 +211,8 @@ def main():
         
         # Seed data
         permissions = seed_permissions(db)
-        admin_role, manager_role, user_role = seed_roles(db, permissions)
-        seed_accounts(db, admin_role, user_role)
+        org_admin_role, admin_role, manager_role, user_role = seed_roles(db, permissions)
+        seed_accounts(db, org_admin_role, admin_role, user_role)
         
         # Close session
         db.close()
@@ -166,8 +221,9 @@ def main():
         print("✓ Database seeding completed successfully!")
         print("=" * 60)
         print("\nSample accounts created:")
-        print("  - admin@example.com / admin123 (Admin role)")
-        print("  - user@example.com / user123 (User role)")
+        print("  - org-admin@example.com / orgadmin123456 (Organization Administrator role)")
+        print("  - admin@example.com / admin123456 (Admin role)")
+        print("  - user@example.com / user123456 (User role)")
         print("\n⚠️  Remember to change these passwords in production!")
         print("=" * 60)
         

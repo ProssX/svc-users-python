@@ -16,9 +16,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login", 
-    response_model=TypedApiResponse[TokenResult], 
-    status_code=status.HTTP_200_OK,
-
+    response_model=TypedApiResponse[TokenResult]
 )
 def login(
     credentials: TokenRequest,
@@ -43,16 +41,16 @@ def login(
     **Security:**
     - This is a public endpoint (no authentication required)
     - Rate limiting should be implemented in production
-    - Password minimum length: 12 characters
+    - Password minimum length: 8 characters
     """
     # Authenticate user with email and password
     account = authenticate_user(db, credentials.email, credentials.password)
     
-    # Return 401 Unauthorized if credentials are invalid
+    # Raise 401 Unauthorized if credentials are invalid
     if not account:
-        return error_response(
-            message="Invalid credentials.",
-            code=status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
         )
     
     # Generate JWT token with all user claims
