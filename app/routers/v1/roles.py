@@ -159,32 +159,32 @@ def assign_permissions(
     db: Session = Depends(get_db),
     current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
-    """Assign permissions to a role. Replaces existing permissions."""
+    """Add permissions to a role. Skips permissions that are already assigned."""
     db_role = role_service.assign_permissions_to_role(db, role_id, permissions.permission_ids)
     if not db_role:
         return not_found_response("Role")
     
     return success_response(
-        message="Permissions assigned successfully",
+        message="Permissions added successfully",
         data=RoleWithPermissions.model_validate(db_role).model_dump()
     )
 
 
-@router.delete("/{role_id}/permissions/{permission_id}", 
+@router.delete("/{role_id}/permissions", 
     response_model=TypedApiResponse[RoleWithPermissions]
 )
-def remove_permission(
+def remove_permissions(
     role_id: UUID,
-    permission_id: UUID,
+    permissions: AssignPermissions,
     db: Session = Depends(get_db),
     current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
-    """Remove a specific permission from a role."""
-    db_role = role_service.remove_permission_from_role(db, role_id, permission_id)
+    """Remove multiple permissions from a role."""
+    db_role = role_service.remove_permissions_from_role(db, role_id, permissions.permission_ids)
     if not db_role:
         return not_found_response("Role")
     
     return success_response(
-        message="Permission removed successfully",
+        message="Permissions removed successfully",
         data=RoleWithPermissions.model_validate(db_role).model_dump()
     )

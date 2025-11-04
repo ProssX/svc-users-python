@@ -30,8 +30,25 @@ def create_account(
     """Create a new account with email and password."""
     
     try:
-        # Check if email already exists
-        existing = account_service.get_account_by_email(db, account.email)
+        # Determine organization ID source: JWT token or request body (for register tokens)
+        if current_user.organizationId and current_user.organizationId.strip():
+            # Normal flow: Use organization from JWT token
+            organization_id = UUID(current_user.organizationId)
+        else:
+            # Register token flow: Use organization from request body
+            organization_id = account.organization_id
+            
+            # Validation: Register tokens can only create the first account
+            # Check if any accounts already exist for this organization
+            existing_accounts, total = account_service.get_accounts(db, organization_id, page=1, page_size=1)
+            if total > 0:
+                return error_response(
+                    message="Register token can only be used to create the first account. Organization already has accounts.",
+                    code=403
+                )
+        
+        # Check if email already exists within the organization
+        existing = account_service.get_account_by_email(db, account.email, organization_id)
         if existing:
             return error_response(
                 message="Account with this email already exists",
@@ -67,14 +84,18 @@ def list_accounts(
     current_user: DecodedToken = Depends(require_permissions(["accounts:read"]))
 ):
     """
-    Get list of all accounts with pagination.
+    Get list of accounts filtered by organization with pagination.
     
     Args:
         page: Page number (1-indexed)
         page_size: Number of items per page (default: 10)
     """
+    from uuid import UUID
     
-    accounts, total_items = account_service.get_accounts(db, page=page, page_size=page_size)
+    # Extract organization ID from JWT token
+    organization_id = UUID(current_user.organizationId)
+    
+    accounts, total_items = account_service.get_accounts(db, organization_id, page=page, page_size=page_size)
     
     # Calculate total pages
     import math
@@ -98,9 +119,13 @@ def get_account(
     db: Session = Depends(get_db),
     current_user: DecodedToken = Depends(require_permissions(["accounts:read"]))
 ):
-    """Get a specific account by email."""
+    """Get a specific account by email within the user's organization."""
+    from uuid import UUID
     
-    db_account = account_service.get_account_by_email(db, email)
+    # Extract organization ID from JWT token
+    organization_id = UUID(current_user.organizationId)
+    
+    db_account = account_service.get_account_by_email(db, email, organization_id)
     if not db_account:
         return not_found_response("Account")
     
@@ -117,9 +142,13 @@ def update_account(
     db: Session = Depends(get_db),
     current_user: DecodedToken = Depends(require_permissions(["accounts:update"]))
 ):
-    """Update an account."""
+    """Update an account within the user's organization."""
+    from uuid import UUID
     
     try:
+        # Extract organization ID from JWT token
+        organization_id = UUID(current_user.organizationId)
+        
         # If updating role, check if it exists
         if account_update.role_id:
             role = role_service.get_role(db, account_update.role_id)
@@ -128,7 +157,7 @@ def update_account(
                     errors=[{"field": "role_id", "error": "Role not found"}]
                 )
         
-        db_account = account_service.update_account(db, email, account_update)
+        db_account = account_service.update_account(db, email, account_update, organization_id)
         if not db_account:
             return not_found_response("Account")
         
@@ -152,9 +181,13 @@ def delete_account(
     db: Session = Depends(get_db),
     current_user: DecodedToken = Depends(require_permissions(["accounts:delete"]))
 ):
-    """Delete an account."""
+    """Delete an account within the user's organization."""
+    from uuid import UUID
     
-    success = account_service.delete_account(db, email)
+    # Extract organization ID from JWT token
+    organization_id = UUID(current_user.organizationId)
+    
+    success = account_service.delete_account(db, email, organization_id)
     if not success:
         return not_found_response("Account")
     

@@ -17,7 +17,7 @@ def create_account(db: Session, account: AccountCreate) -> Account:
     
     db_account = Account(
         email=account.email,
-        entity_id=uuid.uuid4(),  # Generate UUID for entity_id
+        entity_id=account.entity_id,  # Use entity_id from request
         password_hash=hashed_password,
         role_id=account.role_id,
         organization_id=account.organization_id
@@ -28,24 +28,28 @@ def create_account(db: Session, account: AccountCreate) -> Account:
     return db_account
 
 
-def get_account_by_email(db: Session, email: str) -> Optional[Account]:
-    """Get account by email (primary key)."""
-    return db.query(Account).filter(Account.email == email).first()
+def get_account_by_email(db: Session, email: str, organization_id: UUID) -> Optional[Account]:
+    """Get account by email (primary key) filtered by organization."""
+    return db.query(Account).filter(
+        Account.email == email,
+        Account.organization_id == organization_id
+    ).first()
 
 
-def get_accounts(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Account], int]:
+def get_accounts(db: Session, organization_id: UUID, page: int = 1, page_size: int = 10) -> tuple[List[Account], int]:
     """
-    Get list of accounts with page-based pagination.
+    Get list of accounts filtered by organization with page-based pagination.
     
     Args:
         db: Database session
+        organization_id: Organization UUID to filter accounts
         page: Page number (1-indexed)
         page_size: Number of items per page
         
     Returns:
         Tuple of (list of accounts, total count)
     """
-    query = db.query(Account)
+    query = db.query(Account).filter(Account.organization_id == organization_id)
     total = query.count()
     
     # Calculate offset from page number
@@ -55,9 +59,9 @@ def get_accounts(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[
     return accounts, total
 
 
-def update_account(db: Session, email: str, account_update: AccountUpdate) -> Optional[Account]:
-    """Update an account."""
-    db_account = get_account_by_email(db, email)
+def update_account(db: Session, email: str, account_update: AccountUpdate, organization_id: UUID) -> Optional[Account]:
+    """Update an account filtered by organization."""
+    db_account = get_account_by_email(db, email, organization_id)
     if not db_account:
         return None
     
@@ -72,9 +76,9 @@ def update_account(db: Session, email: str, account_update: AccountUpdate) -> Op
     return db_account
 
 
-def delete_account(db: Session, email: str) -> bool:
-    """Delete an account."""
-    db_account = get_account_by_email(db, email)
+def delete_account(db: Session, email: str, organization_id: UUID) -> bool:
+    """Delete an account filtered by organization."""
+    db_account = get_account_by_email(db, email, organization_id)
     if not db_account:
         return False
     
