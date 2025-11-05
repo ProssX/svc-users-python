@@ -290,7 +290,8 @@ def generate_temporary_registration_token(email: str) -> TokenResult:
         "employee:create", 
         "organizations:create",
         "organizations:read",
-        "roles:create"
+        "roles:create",
+        "roles:read"
     ]
     
     # Build JWT payload

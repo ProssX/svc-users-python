@@ -4,6 +4,7 @@ Permission endpoints - CRUD operations for permissions.
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.database import get_db
@@ -18,8 +19,7 @@ router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
 
 @router.post("", 
-    response_model=TypedApiResponse[PermissionResponse], 
-    status_code=201
+    response_model=TypedApiResponse[PermissionResponse]
 )
 def create_permission(
     permission: PermissionCreate,
@@ -31,23 +31,26 @@ def create_permission(
         # Check if permission already exists
         existing = permission_service.get_permission_by_name(db, permission.name)
         if existing:
-            return error_response(
+            response = error_response(
                 message="Permission with this name already exists",
                 code=409
             )
+            return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
         db_permission = permission_service.create_permission(db, permission)
-        return success_response(
+        response = success_response(
             message="Permission created successfully",
             data=PermissionResponse.model_validate(db_permission).model_dump(),
             code=201
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     except IntegrityError:
         db.rollback()
-        return error_response(
+        response = error_response(
             message="Database integrity error",
             code=500
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.get("", 
@@ -80,11 +83,12 @@ def list_permissions(
         total_pages=total_pages
     )
     
-    return success_response(
+    response = success_response(
         message="Permissions retrieved successfully",
         data=[PermissionResponse.model_validate(p).model_dump() for p in permissions],
         meta=pagination_meta.model_dump()
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.get("/{permission_id}", 
@@ -98,12 +102,14 @@ def get_permission(
     """Get a specific permission by ID."""
     db_permission = permission_service.get_permission(db, permission_id)
     if not db_permission:
-        return not_found_response("Permission")
+        response = not_found_response("Permission")
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     
-    return success_response(
+    response = success_response(
         message="Permission retrieved successfully",
         data=PermissionResponse.model_validate(db_permission).model_dump()
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.patch("/{permission_id}", 
@@ -119,18 +125,21 @@ def update_permission(
     try:
         db_permission = permission_service.update_permission(db, permission_id, permission_update)
         if not db_permission:
-            return not_found_response("Permission")
+            response = not_found_response("Permission")
+            return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
-        return success_response(
+        response = success_response(
             message="Permission updated successfully",
             data=PermissionResponse.model_validate(db_permission).model_dump()
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     except IntegrityError:
         db.rollback()
-        return error_response(
+        response = error_response(
             message="Permission with this name already exists",
             code=409
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.delete("/{permission_id}", 
@@ -144,9 +153,11 @@ def delete_permission(
     """Delete a permission."""
     success = permission_service.delete_permission(db, permission_id)
     if not success:
-        return not_found_response("Permission")
+        response = not_found_response("Permission")
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     
-    return success_response(
+    response = success_response(
         message="Permission deleted successfully",
         code=200
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))

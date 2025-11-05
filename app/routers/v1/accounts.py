@@ -4,6 +4,7 @@ Account endpoints - CRUD operations for user accounts.
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.database import get_db
@@ -18,9 +19,7 @@ router = APIRouter(prefix="/accounts", tags=["Accounts"])
 
 
 @router.post("", 
-    response_model=TypedApiResponse[AccountResponse], 
-    status_code=201,
-
+    response_model=TypedApiResponse[AccountResponse]
 )
 def create_account(
     account: AccountCreate,
@@ -42,38 +41,43 @@ def create_account(
             # Check if any accounts already exist for this organization
             existing_accounts, total = account_service.get_accounts(db, organization_id, page=1, page_size=1)
             if total > 0:
-                return error_response(
+                response = error_response(
                     message="Register token can only be used to create the first account. Organization already has accounts.",
                     code=403
                 )
+                return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
         # Check if email already exists within the organization
         existing = account_service.get_account_by_email(db, account.email, organization_id)
         if existing:
-            return error_response(
+            response = error_response(
                 message="Account with this email already exists",
                 code=409
             )
+            return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
         # Check if role exists
         role = role_service.get_role(db, account.role_id)
         if not role:
-            return validation_error_response(
+            response = validation_error_response(
                 errors=[{"field": "role_id", "error": "Role not found"}]
             )
+            return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
         db_account = account_service.create_account(db, account)
-        return success_response(
+        response = success_response(
             message="Account created successfully",
             data=AccountResponse.model_validate(db_account).model_dump(),
             code=201
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     except IntegrityError:
         db.rollback()
-        return error_response(
+        response = error_response(
             message="Database integrity error",
             code=500
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.get("", response_model=TypedApiResponse[List[AccountWithRole]])
@@ -101,7 +105,7 @@ def list_accounts(
     import math
     total_pages = math.ceil(total_items / page_size) if total_items > 0 else 0
     
-    return success_response(
+    response = success_response(
         message="Accounts retrieved successfully",
         data=[AccountWithRole.model_validate(a).model_dump() for a in accounts],
         meta={
@@ -111,6 +115,7 @@ def list_accounts(
             "total_pages": total_pages
         }
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.get("/{email}", response_model=TypedApiResponse[AccountWithRole])
@@ -127,12 +132,14 @@ def get_account(
     
     db_account = account_service.get_account_by_email(db, email, organization_id)
     if not db_account:
-        return not_found_response("Account")
+        response = not_found_response("Account")
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     
-    return success_response(
+    response = success_response(
         message="Account retrieved successfully",
         data=AccountWithRole.model_validate(db_account).model_dump()
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.patch("/{email}", response_model=TypedApiResponse[AccountResponse])
@@ -153,24 +160,28 @@ def update_account(
         if account_update.role_id:
             role = role_service.get_role(db, account_update.role_id)
             if not role:
-                return validation_error_response(
+                response = validation_error_response(
                     errors=[{"field": "role_id", "error": "Role not found"}]
                 )
+                return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
         db_account = account_service.update_account(db, email, account_update, organization_id)
         if not db_account:
-            return not_found_response("Account")
+            response = not_found_response("Account")
+            return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
-        return success_response(
+        response = success_response(
             message="Account updated successfully",
             data=AccountResponse.model_validate(db_account).model_dump()
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     except IntegrityError:
         db.rollback()
-        return error_response(
+        response = error_response(
             message="Database integrity error",
             code=500
         )
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.delete("/{email}", 
@@ -189,9 +200,11 @@ def delete_account(
     
     success = account_service.delete_account(db, email, organization_id)
     if not success:
-        return not_found_response("Account")
+        response = not_found_response("Account")
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
     
-    return success_response(
+    response = success_response(
         message="Account deleted successfully",
         code=200
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
