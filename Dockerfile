@@ -27,6 +27,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
+# Copy Alembic configuration and migrations
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
@@ -38,7 +42,7 @@ EXPOSE 8001
 
 # Health check - uses curl and respects PORT env var
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8001}/api/v1/health || exit 1
+    CMD curl -f http://127.0.0.1:${PORT:-8001}/api/v1/health || exit 1
 
 # Run application - reads PORT and HOST from environment
 # Using 'exec' to make uvicorn PID 1 for proper signal handling
