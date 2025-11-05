@@ -4,7 +4,7 @@ Authentication service for password hashing, verification, and JWT token generat
 import base64
 import bcrypt
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid_utils import uuid7
 from cryptography.hazmat.primitives import serialization
@@ -173,7 +173,7 @@ def generate_jwt_token(account: Account, db: Session) -> TokenResult:
     settings = get_settings()
     
     # Calculate timestamps
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     expiration = now + timedelta(days=settings.jwt_expiration_days)
     iat = int(now.timestamp())
     exp = int(expiration.timestamp())
@@ -279,7 +279,7 @@ def generate_temporary_registration_token(email: str) -> TokenResult:
     settings = get_settings()
     
     # Calculate timestamps - 15 minute expiration
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     expiration = now + timedelta(minutes=15)
     iat = int(now.timestamp())
     exp = int(expiration.timestamp())

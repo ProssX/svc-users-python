@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     environment: str = "development"
     
+    # CORS - Comma-separated list of allowed origins
+    cors_origins: str = "*"
+    
     # Security
     # IMPORTANT: Must be set in environment variables for production
     secret_key: str
