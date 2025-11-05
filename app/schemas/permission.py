@@ -3,7 +3,7 @@ Permission schemas for request/response validation.
 """
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class PermissionBase(BaseModel):
@@ -22,10 +22,19 @@ class PermissionUpdate(BaseModel):
 
 
 class PermissionResponse(PermissionBase):
-    """Schema for permission response."""
-    id: UUID
-    created_at: datetime
-    updated_at: datetime
+    """Schema for permission response with realistic examples."""
+    id: UUID = Field(..., description="Unique permission identifier")
+    created_at: datetime = Field(..., description="Permission creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "users:create",
+                "id": "18e6d529-e8b1-4b48-aebc-d19b4e627e15",
+                "created_at": "2025-10-22T00:58:32.178170",
+                "updated_at": "2025-10-22T00:58:32.178172"
+            }
+        }
+    )

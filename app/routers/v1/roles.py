@@ -2,24 +2,32 @@
 Role endpoints - CRUD operations for roles and permission assignments.
 """
 from uuid import UUID
+from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.database import get_db
-from app.schemas.response import ApiResponse
+from app.schemas.response import ApiResponse, TypedApiResponse, PaginationMeta
 from app.schemas.role import RoleCreate, RoleUpdate, RoleResponse, RoleWithPermissions, AssignPermissions
+from app.schemas.auth import DecodedToken
 from app.services import role_service
+from app.dependencies.permissions import require_permissions
 from app.utils.response import success_response, error_response, not_found_response
 
 router = APIRouter(prefix="/roles", tags=["Roles"])
 
 
-@router.post("", response_model=ApiResponse, status_code=201)
+@router.post("", 
+    response_model=TypedApiResponse[RoleResponse], 
+    status_code=201
+)
 def create_role(
     role: RoleCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:create"]))
 ):
     """Create a new role."""
+    
     try:
         # Check if role already exists
         existing = role_service.get_role_by_name(db, role.name)
@@ -43,11 +51,14 @@ def create_role(
         )
 
 
-@router.get("", response_model=ApiResponse)
+@router.get("", 
+    response_model=TypedApiResponse[List[RoleWithPermissions]]
+)
 def list_roles(
     page: int = 1,
     page_size: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:read"]))
 ):
     """
     Get list of all roles with pagination.
@@ -65,19 +76,22 @@ def list_roles(
     return success_response(
         message="Roles retrieved successfully",
         data=[RoleWithPermissions.model_validate(r).model_dump() for r in roles],
-        meta={
-            "page": page,
-            "page_size": page_size,
-            "total_items": total_items,
-            "total_pages": total_pages
-        }
+        meta=PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total_items=total_items,
+            total_pages=total_pages
+        ).model_dump()
     )
 
 
-@router.get("/{role_id}", response_model=ApiResponse)
+@router.get("/{role_id}", 
+    response_model=TypedApiResponse[RoleWithPermissions]
+)
 def get_role(
     role_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:read"]))
 ):
     """Get a specific role by ID with its permissions."""
     db_role = role_service.get_role(db, role_id)
@@ -90,11 +104,14 @@ def get_role(
     )
 
 
-@router.patch("/{role_id}", response_model=ApiResponse)
+@router.patch("/{role_id}", 
+    response_model=TypedApiResponse[RoleResponse]
+)
 def update_role(
     role_id: UUID,
     role_update: RoleUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Update a role."""
     try:
@@ -114,10 +131,13 @@ def update_role(
         )
 
 
-@router.delete("/{role_id}", response_model=ApiResponse)
+@router.delete("/{role_id}", 
+    response_model=TypedApiResponse[None]
+)
 def delete_role(
     role_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:delete"]))
 ):
     """Delete a role."""
     success = role_service.delete_role(db, role_id)
@@ -130,11 +150,14 @@ def delete_role(
     )
 
 
-@router.post("/{role_id}/permissions", response_model=ApiResponse)
+@router.post("/{role_id}/permissions", 
+    response_model=TypedApiResponse[RoleWithPermissions]
+)
 def assign_permissions(
     role_id: UUID,
     permissions: AssignPermissions,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Assign permissions to a role. Replaces existing permissions."""
     db_role = role_service.assign_permissions_to_role(db, role_id, permissions.permission_ids)
@@ -147,11 +170,14 @@ def assign_permissions(
     )
 
 
-@router.delete("/{role_id}/permissions/{permission_id}", response_model=ApiResponse)
+@router.delete("/{role_id}/permissions/{permission_id}", 
+    response_model=TypedApiResponse[RoleWithPermissions]
+)
 def remove_permission(
     role_id: UUID,
     permission_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:update"]))
 ):
     """Remove a specific permission from a role."""
     db_role = role_service.remove_permission_from_role(db, role_id, permission_id)

@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     
     # Security
-    secret_key: str = "change-me-in-production"
+    # IMPORTANT: Must be set in environment variables for production
+    secret_key: str
     
     # JWT Configuration
     jwt_algorithm: str = "RS256"
@@ -36,6 +37,20 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False
     )
+
+
+# Public routes that don't require authentication
+PUBLIC_ROUTES = [
+    "/",
+    "/health",
+    "/api/v1/health", 
+    "/api/v1/auth/login",
+    "/api/v1/auth/register", 
+    "/api/v1/auth/jwks",
+    "/docs",
+    "/redoc",
+    "/openapi.json"
+]
 
 
 @lru_cache()

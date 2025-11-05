@@ -6,15 +6,20 @@ from sqlalchemy.orm import Session
 import jwt
 
 from app.database import get_db
-from app.schemas.response import ApiResponse
+from app.schemas.response import ApiResponse, TypedApiResponse
 from app.schemas.auth import TokenRequest, TokenResult, JWKS, DecodedToken
-from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token
+from app.services.auth_service import authenticate_user, generate_jwt_token, get_jwks, verify_and_decode_token, generate_temporary_registration_token
 from app.utils.response import success_response, error_response
+from app.dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/login", response_model=ApiResponse, status_code=status.HTTP_200_OK)
+@router.post("/login", 
+    response_model=TypedApiResponse[TokenResult], 
+    status_code=status.HTTP_200_OK,
+
+)
 def login(
     credentials: TokenRequest,
     db: Session = Depends(get_db)
@@ -61,7 +66,52 @@ def login(
     )
 
 
-@router.get("/jwks", response_model=JWKS, status_code=status.HTTP_200_OK)
+@router.post("/register", 
+    response_model=TypedApiResponse[TokenResult], 
+    status_code=status.HTTP_201_CREATED,
+    summary="Register and get temporary token",
+    description="Issues a temporary token with limited permissions for initial setup"
+)
+def register(credentials: TokenRequest):
+    """
+    Register and issue temporary JWT token.
+    
+    **Registration Flow:**
+    1. Validates email and password format (no database lookup)
+    2. Generates RS256-signed JWT with 15-minute TTL
+    3. Includes fixed permissions for initial setup operations
+    
+    **Token Claims:**
+    - Standard: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` (UUID v7)
+    - Custom: `organizationId` (empty), `roles` (empty), `permissions` (fixed)
+    
+    **Fixed Permissions:**
+    - create_user: Create new user accounts
+    - create_employee: Create employee records
+    - create_organization: Create organization records
+    - read_business_types: Read business type data
+    
+    **Response:**
+    - Returns token string, type, and expiration timestamp
+    - Token expires in 15 minutes
+    
+    **Security:**
+    - This is a public endpoint (no authentication required)
+    - Token has limited permissions and short expiration
+    - No database validation - format validation only
+    """
+    # Generate temporary registration token with fixed permissions
+    token_result = generate_temporary_registration_token(credentials.email)
+    
+    # Return success response with token
+    return success_response(
+        message="Registration token issued.",
+        data=token_result.model_dump(),
+        code=status.HTTP_201_CREATED
+    )
+
+
+@router.get("/jwks", response_model=TypedApiResponse[JWKS], status_code=status.HTTP_200_OK)
 def get_jwks_endpoint():
     """
     Get JSON Web Key Set (JWKS).
@@ -84,11 +134,16 @@ def get_jwks_endpoint():
     - Public keys can be safely shared and distributed
     - Private key is never exposed
     """
-    return get_jwks()
+    jwks_data = get_jwks()
+    return success_response(
+        message="JWKS retrieved successfully.",
+        data=jwks_data.model_dump(),
+        code=status.HTTP_200_OK
+    )
 
 
-@router.get("/me", response_model=ApiResponse, status_code=status.HTTP_200_OK)
-def verify_token(authorization: str = Header(...)):
+@router.get("/me", response_model=TypedApiResponse[DecodedToken], status_code=status.HTTP_200_OK)
+async def verify_token(current_user: DecodedToken = Depends(get_current_user)):
     """
     Verify JWT token and return decoded payload.
     
@@ -111,53 +166,10 @@ def verify_token(authorization: str = Header(...)):
     - 401: Token has expired
     - 401: Invalid issuer or audience
     """
-    # Check if Authorization header is present and starts with "Bearer "
-    if not authorization or not authorization.startswith("Bearer "):
-        return error_response(
-            message="Missing or malformed Authorization header. Expected format: 'Bearer <token>'",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    # Extract token from "Bearer <token>"
-    token = authorization.split(" ")[1]
-    
-    try:
-        # Verify signature and decode token
-        decoded_token = verify_and_decode_token(token)
-        
-        # Return success response with decoded token
-        return success_response(
-            message="Token verified successfully.",
-            data=decoded_token.model_dump(),
-            code=status.HTTP_200_OK
-        )
-    
-    except jwt.ExpiredSignatureError:
-        return error_response(
-            message="Token has expired.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidIssuerError:
-        return error_response(
-            message="Invalid token issuer.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidAudienceError:
-        return error_response(
-            message="Invalid token audience.",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except jwt.InvalidTokenError as e:
-        return error_response(
-            message=f"Invalid token: {str(e)}",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    except Exception as e:
-        return error_response(
-            message=f"Token verification failed: {str(e)}",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
+    # The authentication dependency handles all token validation
+    # and provides the decoded token as current_user
+    return success_response(
+        message="Token verified successfully.",
+        data=current_user.model_dump(),
+        code=status.HTTP_200_OK
+    )
