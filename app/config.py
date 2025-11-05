@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     
     # Security
-    secret_key: str = "change-me-in-production"
+    # IMPORTANT: Must be set in environment variables for production
+    secret_key: str
     
     # JWT Configuration
     jwt_algorithm: str = "RS256"
