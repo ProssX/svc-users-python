@@ -9,3 +9,4 @@ python-dotenv==1.0.0
 pyjwt[crypto]==2.8.0
 cryptography==41.0.7
 uuid-utils==0.6.1
+httpx==0.25.2

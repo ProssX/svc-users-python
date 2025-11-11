@@ -3,7 +3,7 @@ Account endpoints - CRUD operations for user accounts.
 """
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -21,12 +21,16 @@ router = APIRouter(prefix="/accounts", tags=["Accounts"])
 @router.post("", 
     response_model=TypedApiResponse[AccountResponse]
 )
-def create_account(
+async def create_account(
     account: AccountCreate,
     db: Session = Depends(get_db),
-    current_user: DecodedToken = Depends(require_permissions(["accounts:create"]))
+    current_user: DecodedToken = Depends(require_permissions(["accounts:create"])),
+    authorization: str = Header(...)
 ):
     """Create a new account with email and password."""
+    
+    # Extract JWT token from Authorization header
+    auth_token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
     
     try:
         # Determine organization ID source: JWT token or request body (for register tokens)
@@ -64,13 +68,23 @@ def create_account(
             )
             return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
         
-        db_account = account_service.create_account(db, account)
+        # Create account (will update Organizations Service first)
+        db_account = await account_service.create_account(db, account, auth_token)
         response = success_response(
             message="Account created successfully",
             data=AccountResponse.model_validate(db_account).model_dump(),
             code=201
         )
         return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
+    except Exception as e:
+        # Handle Organizations Service errors
+        if "Organizations Service" in str(e):
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(e)
+            )
+        raise
     except IntegrityError:
         db.rollback()
         response = error_response(
@@ -114,6 +128,30 @@ def list_accounts(
             "total_items": total_items,
             "total_pages": total_pages
         }
+    )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
+
+
+@router.get("/by-entity-id/{entity_id}", response_model=TypedApiResponse[AccountWithRole])
+def get_account_by_entity_id(
+    entity_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["accounts:read"]))
+):
+    """Get a specific account by entity_id within the user's organization."""
+    from uuid import UUID
+    
+    # Extract organization ID from JWT token
+    organization_id = UUID(current_user.organizationId)
+    
+    db_account = account_service.get_account_by_entity_id(db, entity_id, organization_id)
+    if not db_account:
+        response = not_found_response("Account")
+        return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
+    
+    response = success_response(
+        message="Account retrieved successfully",
+        data=AccountWithRole.model_validate(db_account).model_dump()
     )
     return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
@@ -187,18 +225,22 @@ def update_account(
 @router.delete("/{email}", 
     response_model=TypedApiResponse[AccountResponse]
 )
-def delete_account(
+async def delete_account(
     email: str,
     db: Session = Depends(get_db),
-    current_user: DecodedToken = Depends(require_permissions(["accounts:delete"]))
+    current_user: DecodedToken = Depends(require_permissions(["accounts:delete"])),
+    authorization: str = Header(...)
 ):
     """Delete an account within the user's organization."""
     from uuid import UUID
     
+    # Extract JWT token from Authorization header
+    auth_token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    
     # Extract organization ID from JWT token
     organization_id = UUID(current_user.organizationId)
     
-    success = account_service.delete_account(db, email, organization_id)
+    success = await account_service.delete_account(db, email, organization_id, auth_token)
     if not success:
         response = not_found_response("Account")
         return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
