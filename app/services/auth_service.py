@@ -289,6 +289,7 @@ def generate_temporary_registration_token(email: str) -> TokenResult:
         "accounts:create",
         "employees:create", 
         "organizations:create",
+        "roles:create",
         "business_types:read"
     ]
     
