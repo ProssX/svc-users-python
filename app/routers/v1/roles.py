@@ -85,6 +85,32 @@ def list_roles(
     )
 
 
+@router.get("/by-name/{name}", 
+    response_model=TypedApiResponse[RoleWithPermissions]
+)
+def get_role_by_name(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: DecodedToken = Depends(require_permissions(["roles:read"]))
+):
+    """
+    Get a specific role by name (case-insensitive) with its permissions.
+    
+    Args:
+        name: Role name (case-insensitive, URL-encoded if contains spaces)
+    
+    Example: /api/v1/roles/by-name/Organization%20Administrator
+    """
+    db_role = role_service.get_role_by_name_insensitive(db, name)
+    if not db_role:
+        return not_found_response("Role")
+    
+    return success_response(
+        message="Role retrieved successfully",
+        data=RoleWithPermissions.model_validate(db_role).model_dump()
+    )
+
+
 @router.get("/{role_id}", 
     response_model=TypedApiResponse[RoleWithPermissions]
 )

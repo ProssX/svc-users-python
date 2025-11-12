@@ -24,8 +24,13 @@ def get_role(db: Session, role_id: UUID) -> Optional[Role]:
 
 
 def get_role_by_name(db: Session, name: str) -> Optional[Role]:
-    """Get role by name."""
+    """Get role by name (case-sensitive)."""
     return db.query(Role).filter(Role.name == name).first()
+
+
+def get_role_by_name_insensitive(db: Session, name: str) -> Optional[Role]:
+    """Get role by name (case-insensitive)."""
+    return db.query(Role).filter(Role.name.ilike(name)).first()
 
 
 def get_roles(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Role], int]:
