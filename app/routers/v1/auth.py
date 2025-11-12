@@ -2,6 +2,7 @@
 Authentication endpoints - login and JWKS.
 """
 from fastapi import APIRouter, Depends, status, HTTPException, Header
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 import jwt
 
@@ -16,9 +17,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login", 
-    response_model=TypedApiResponse[TokenResult], 
-    status_code=status.HTTP_200_OK,
-
+    response_model=TypedApiResponse[TokenResult]
 )
 def login(
     credentials: TokenRequest,
@@ -43,32 +42,32 @@ def login(
     **Security:**
     - This is a public endpoint (no authentication required)
     - Rate limiting should be implemented in production
-    - Password minimum length: 12 characters
+    - Password minimum length: 8 characters
     """
     # Authenticate user with email and password
     account = authenticate_user(db, credentials.email, credentials.password)
     
-    # Return 401 Unauthorized if credentials are invalid
+    # Raise 401 Unauthorized if credentials are invalid
     if not account:
-        return error_response(
-            message="Invalid credentials.",
-            code=status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
         )
     
     # Generate JWT token with all user claims
     token_result = generate_jwt_token(account, db)
     
     # Return success response with token
-    return success_response(
+    response = success_response(
         message="Token issued.",
         data=token_result.model_dump(),
         code=status.HTTP_200_OK
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
 @router.post("/register", 
-    response_model=TypedApiResponse[TokenResult], 
-    status_code=status.HTTP_201_CREATED,
+    response_model=TypedApiResponse[TokenResult],
     summary="Register and get temporary token",
     description="Issues a temporary token with limited permissions for initial setup"
 )
@@ -104,14 +103,15 @@ def register(credentials: TokenRequest):
     token_result = generate_temporary_registration_token(credentials.email)
     
     # Return success response with token
-    return success_response(
+    response = success_response(
         message="Registration token issued.",
         data=token_result.model_dump(),
         code=status.HTTP_201_CREATED
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
-@router.get("/jwks", response_model=TypedApiResponse[JWKS], status_code=status.HTTP_200_OK)
+@router.get("/jwks", response_model=TypedApiResponse[JWKS])
 def get_jwks_endpoint():
     """
     Get JSON Web Key Set (JWKS).
@@ -135,14 +135,15 @@ def get_jwks_endpoint():
     - Private key is never exposed
     """
     jwks_data = get_jwks()
-    return success_response(
+    response = success_response(
         message="JWKS retrieved successfully.",
         data=jwks_data.model_dump(),
         code=status.HTTP_200_OK
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))
 
 
-@router.get("/me", response_model=TypedApiResponse[DecodedToken], status_code=status.HTTP_200_OK)
+@router.get("/me", response_model=TypedApiResponse[DecodedToken])
 async def verify_token(current_user: DecodedToken = Depends(get_current_user)):
     """
     Verify JWT token and return decoded payload.
@@ -168,8 +169,9 @@ async def verify_token(current_user: DecodedToken = Depends(get_current_user)):
     """
     # The authentication dependency handles all token validation
     # and provides the decoded token as current_user
-    return success_response(
+    response = success_response(
         message="Token verified successfully.",
         data=current_user.model_dump(),
         code=status.HTTP_200_OK
     )
+    return JSONResponse(status_code=response.code, content=response.model_dump(mode='json'))

@@ -1,5 +1,5 @@
 services:
-  postgres:
+  postgres-users:
     image: postgres:15-alpine
     container_name: svc-users-db
     environment:
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - svc-users-network
+      - proocess-network
 
   app:
     build: .
@@ -24,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/svc_users
+      DATABASE_URL: postgresql://postgres:postgres@postgres-users:5432/svc_users
       PORT: 8001
       HOST: 0.0.0.0
       ENVIRONMENT: development
@@ -33,14 +33,15 @@ services:
     volumes:
       - ./alembic/versions:/app/alembic/versions
     depends_on:
-      postgres:
+      postgres-users:
         condition: service_healthy
     networks:
-      - svc-users-network
+      - proocess-network
 
 volumes:
   postgres_data:
 
 networks:
-  svc-users-network:
+  proocess-network:
+    name: proocess-network
     driver: bridge
