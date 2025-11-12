@@ -287,10 +287,12 @@ def generate_temporary_registration_token(email: str) -> TokenResult:
     # Fixed permissions for registration token
     permissions = [
         "accounts:create",
-        "employees:create", 
+        "employee:update",
+        "employee:create", 
         "organizations:create",
+        "organizations:read",
         "roles:create",
-        "business_types:read"
+        "roles:read"
     ]
     
     # Build JWT payload
