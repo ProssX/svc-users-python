@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     jwt_private_key: str
     jwt_public_key: str
     
+    # External Services
+    organizations_service_url: str = "http://localhost:8000/api/v1"
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -24,13 +24,8 @@ def get_role(db: Session, role_id: UUID) -> Optional[Role]:
 
 
 def get_role_by_name(db: Session, name: str) -> Optional[Role]:
-    """Get role by name (case-sensitive)."""
+    """Get role by name."""
     return db.query(Role).filter(Role.name == name).first()
-
-
-def get_role_by_name_insensitive(db: Session, name: str) -> Optional[Role]:
-    """Get role by name (case-insensitive)."""
-    return db.query(Role).filter(Role.name.ilike(name)).first()
 
 
 def get_roles(db: Session, page: int = 1, page_size: int = 10) -> tuple[List[Role], int]:
@@ -84,34 +79,43 @@ def delete_role(db: Session, role_id: UUID) -> bool:
 
 def assign_permissions_to_role(db: Session, role_id: UUID, permission_ids: List[UUID]) -> Optional[Role]:
     """
-    Assign multiple permissions to a role.
-    Replaces existing permissions with the new list.
+    Add multiple permissions to a role.
+    Skips permissions that are already assigned.
     """
     db_role = get_role(db, role_id)
     if not db_role:
         return None
     
-    # Get all permissions by IDs
-    permissions = db.query(Permission).filter(Permission.id.in_(permission_ids)).all()
+    # Get current permission IDs
+    current_permission_ids = {p.id for p in db_role.permissions}
     
-    # Replace role's permissions
-    db_role.permissions = permissions
-    db.commit()
-    db.refresh(db_role)
+    # Filter out permissions that are already assigned
+    new_permission_ids = [pid for pid in permission_ids if pid not in current_permission_ids]
+    
+    if new_permission_ids:
+        # Get new permissions by IDs
+        new_permissions = db.query(Permission).filter(Permission.id.in_(new_permission_ids)).all()
+        
+        # Add new permissions to existing ones
+        db_role.permissions.extend(new_permissions)
+        db.commit()
+        db.refresh(db_role)
+    
     return db_role
 
 
-def remove_permission_from_role(db: Session, role_id: UUID, permission_id: UUID) -> Optional[Role]:
-    """Remove a specific permission from a role."""
+def remove_permissions_from_role(db: Session, role_id: UUID, permission_ids: List[UUID]) -> Optional[Role]:
+    """Remove multiple permissions from a role."""
     db_role = get_role(db, role_id)
     if not db_role:
         return None
     
-    # Find and remove the permission
-    permission = next((p for p in db_role.permissions if p.id == permission_id), None)
-    if permission:
-        db_role.permissions.remove(permission)
-        db.commit()
-        db.refresh(db_role)
+    # Convert permission_ids to set for faster lookup
+    permission_ids_set = set(permission_ids)
     
+    # Filter out permissions to be removed
+    db_role.permissions = [p for p in db_role.permissions if p.id not in permission_ids_set]
+    
+    db.commit()
+    db.refresh(db_role)
     return db_role
