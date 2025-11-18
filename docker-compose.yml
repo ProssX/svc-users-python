@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  postgres:
+  postgres-users:
     image: postgres:15-alpine
     container_name: svc-users-db
     environment:
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: svc_users
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - svc-users-network
+      - proocess-network
 
   app:
     build: .
@@ -26,21 +26,22 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/svc_users
+      DATABASE_URL: postgresql://postgres:postgres@postgres-users:5432/svc_users
       PORT: 8001
       HOST: 0.0.0.0
       ENVIRONMENT: development
     ports:
       - "8001:8001"
     depends_on:
-      postgres:
+      postgres-users:
         condition: service_healthy
     networks:
-      - svc-users-network
+      - proocess-network
 
 volumes:
   postgres_data:
 
 networks:
-  svc-users-network:
+  proocess-network:
+    name: proocess-network
     driver: bridge

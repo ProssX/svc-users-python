@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.config import get_settings, PUBLIC_ROUTES
-from app.database import init_db
 from app.routers.v1.router import api_v1_router
 from app.exceptions import register_exception_handlers
 
@@ -22,10 +21,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Parse CORS origins (supports comma-separated list or "*")
+allowed_origins = ["*"] if settings.cors_origins == "*" else [
+    origin.strip() for origin in settings.cors_origins.split(",")
+]
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -85,8 +89,10 @@ app.openapi = custom_openapi
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on application startup."""
-    init_db()
+    """Application startup tasks."""
+    # Database schema is managed by Alembic migrations
+    # Run migrations before starting: alembic upgrade head
+    pass
 
 
 @app.on_event("shutdown")

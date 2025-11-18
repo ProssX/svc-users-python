@@ -17,8 +17,12 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     environment: str = "development"
     
+    # CORS - Comma-separated list of allowed origins
+    cors_origins: str = "*"
+    
     # Security
-    secret_key: str = "change-me-in-production"
+    # IMPORTANT: Must be set in environment variables for production
+    secret_key: str
     
     # JWT Configuration
     jwt_algorithm: str = "RS256"
@@ -30,6 +34,9 @@ class Settings(BaseSettings):
     # RSA Keys (base64-encoded PEM format stored in environment variables)
     jwt_private_key: str
     jwt_public_key: str
+    
+    # External Services
+    organizations_service_url: str = "http://localhost:8000/api/v1"
     
     model_config = SettingsConfigDict(
         env_file=".env",

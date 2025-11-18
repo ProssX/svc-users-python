@@ -5,7 +5,7 @@ Generates a 2048-bit RSA key pair and outputs as base64-encoded PEM strings
 suitable for storing in environment variables.
 
 Usage:
-    python generate_keys.py
+    python -m app.scripts.generate_keys
 
 Output:
     Base64-encoded private and public keys to copy into .env file

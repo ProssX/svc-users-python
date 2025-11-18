@@ -38,12 +38,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def init_db():
-    """
-    Initialize database tables.
-    Creates all tables defined in models.
-    """
-    from app.models import account, role, permission, role_permission
-    Base.metadata.create_all(bind=engine)
